@@ -6,10 +6,21 @@ use url::Url;
 use tungstenite::connect;
 
 fn deserialize(raw: &str) -> Result<OrderbookSnapshot<10>, ()> {
-    let deserialized: Value = serde_json::from_str(raw).unwrap();
+    let deserialization = serde_json::from_str(raw);
+    let deserialized: Value;
+
+    match deserialization {
+      Ok(des) => deserialized = des,
+      Err(_) => return Err(())
+    }
+    
     let exchange = ['B', 'I', 'N', 'A', 'N', 'C', 'E', ' ', ' ', ' '];
     let bids = &deserialized["bids"];
     let asks = &deserialized["asks"];
+
+    if bids.is_null() || asks.is_null() {
+        return Err(());
+      }
 
     Ok(OrderbookSnapshot { 
         bids: [
