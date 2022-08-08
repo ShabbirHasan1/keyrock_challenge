@@ -1,7 +1,7 @@
 use crate::level::Level;
 
-pub struct Summary {
+pub struct Summary<const SIZE: usize> {
     pub spread: f64,
-    pub bids: [Level; 10],
-    pub asks: [Level; 10]
+    pub bids: [Level; SIZE],
+    pub asks: [Level; SIZE],
 }

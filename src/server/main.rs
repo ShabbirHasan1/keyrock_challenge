@@ -1,31 +1,31 @@
-mod orderbook_snapshot;
 mod aggregator;
 mod binance_spot;
 mod bitstamp_spot;
-mod summary;
-mod limited_collection;
+mod grpc;
 mod level;
+mod orderbook_snapshot;
+mod summary;
 
-use orderbook_snapshot::OrderbookSnapshot;
 use aggregator::Aggregator;
+use orderbook_snapshot::OrderbookSnapshot;
 
-use std::{sync::{Arc, Mutex}, thread};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
 fn main() {
-
-    let aggregator = Aggregator::<10>::new();
+    let aggregator = Aggregator::new();
     let aggregator = Mutex::new(aggregator);
-    let aggregator = Arc::new(aggregator);
-
-    let arc_01 = aggregator.clone();
-    let arc_02 = aggregator.clone();
+    let arc_01 = Arc::new(aggregator);
+    let arc_02 = arc_01.clone();
 
     let binance_stream = thread::spawn(move || {
-        binance_spot::run_stream(arc_01);
+        binance_spot::run_stream(0, arc_01);
     });
 
     let bitstamp_stream = thread::spawn(move || {
-        bitstamp_spot::run_stream(arc_02);
+        bitstamp_spot::run_stream(1, arc_02);
     });
 
     binance_stream.join().unwrap();
