@@ -91,29 +91,32 @@ impl Aggregator {
             return;
         }
 
-        let level_01 = &levels_01[index_01];
-        let level_02 = &levels_02[index_02];
-
         let mut new_index_01 = index_01;
         let mut new_index_02 = index_02;
 
         if side {
             // asks
+            let level_01 = &levels_01[index_01];
+            let level_02 = &levels_02[index_02];
+
             if level_01.price > level_02.price {
                 merged[merged_index] = Some(*level_02);
                 new_index_02 += 1;
             } else {
-                merged[merged_index] = Some(*level_02);
+                merged[merged_index] = Some(*level_01);
                 new_index_01 += 1;
             }
         } else {
             // bids
-            if level_01.price < level_02.price {
-                merged[merged_index] = Some(*level_02);
-                new_index_02 += 1;
+            let level_01 = &levels_01[9 - index_01];
+            let level_02 = &levels_02[9 - index_02];
+
+            if level_01.price > level_02.price {
+                merged[merged_index] = Some(*level_01);
+                new_index_01 += 1;
             } else {
                 merged[merged_index] = Some(*level_02);
-                new_index_01 += 1;
+                new_index_02 += 1;
             }
         }
 
@@ -130,5 +133,74 @@ impl Aggregator {
 
     fn normalize(original: &[Option<Level>; 10]) -> [Level; 10] {
         <[Level; 10]>::init_with_indices(|i| original[i].unwrap())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Aggregator;
+    use crate::level::Level;
+    use init_with::InitWith;
+
+    #[test]
+    fn should_merge_bids() {
+        // Arrange
+        let mut merged: [Option<Level>; 10] = [None; 10];
+        let levels_01 = <[Level; 10]>::init_with_indices(|i| Level {
+            price: 10. + i as f64,
+            amount: 13.,
+            exchange: [' '; 10],
+        });
+        let levels_02 = <[Level; 10]>::init_with_indices(|i| Level {
+            price: 6. + 2. * i as f64,
+            amount: 37.,
+            exchange: [' '; 10],
+        });
+
+        // Act
+        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, 0, false);
+
+        // Assert
+        assert!(merged[0].unwrap().amount == 37. && merged[0].unwrap().price == 24.);
+        assert!(merged[1].unwrap().amount == 37. && merged[1].unwrap().price == 22.);
+        assert!(merged[2].unwrap().amount == 37. && merged[2].unwrap().price == 20.);
+        assert!(merged[3].unwrap().amount == 13. && merged[3].unwrap().price == 19.);
+        assert!(merged[4].unwrap().amount == 37. && merged[4].unwrap().price == 18.);
+        assert!(merged[5].unwrap().amount == 13. && merged[5].unwrap().price == 18.);
+        assert!(merged[6].unwrap().amount == 13. && merged[6].unwrap().price == 17.);
+        assert!(merged[7].unwrap().amount == 37. && merged[7].unwrap().price == 16.);
+        assert!(merged[8].unwrap().amount == 13. && merged[8].unwrap().price == 16.);
+        assert!(merged[9].unwrap().amount == 13. && merged[9].unwrap().price == 15.);
+    }
+
+    #[test]
+    fn should_merge_asks() {
+        // Arrange
+        let mut merged: [Option<Level>; 10] = [None; 10];
+        let levels_01 = <[Level; 10]>::init_with_indices(|i| Level {
+            price: 10. + i as f64,
+            amount: 13.,
+            exchange: [' '; 10],
+        });
+        let levels_02 = <[Level; 10]>::init_with_indices(|i| Level {
+            price: 6. + 2. * i as f64,
+            amount: 37.,
+            exchange: [' '; 10],
+        });
+
+        // Act
+        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, 0, true);
+
+        // Assert
+        assert!(merged[0].unwrap().amount == 37. && merged[0].unwrap().price == 6.);
+        assert!(merged[1].unwrap().amount == 37. && merged[1].unwrap().price == 8.);
+        assert!(merged[2].unwrap().amount == 13. && merged[2].unwrap().price == 10.);
+        assert!(merged[3].unwrap().amount == 37. && merged[3].unwrap().price == 10.);
+        assert!(merged[4].unwrap().amount == 13. && merged[4].unwrap().price == 11.);
+        assert!(merged[5].unwrap().amount == 13. && merged[5].unwrap().price == 12.);
+        assert!(merged[6].unwrap().amount == 37. && merged[6].unwrap().price == 12.);
+        assert!(merged[7].unwrap().amount == 13. && merged[7].unwrap().price == 13.);
+        assert!(merged[8].unwrap().amount == 13. && merged[8].unwrap().price == 14.);
+        assert!(merged[9].unwrap().amount == 37. && merged[9].unwrap().price == 14.);
     }
 }
