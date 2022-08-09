@@ -1,11 +1,13 @@
 use crate::{level::Level, orderbook_snapshot::OrderbookSnapshot, summary::Summary};
 use init_with::InitWith;
 
+const DEPTH: usize = 10;
+
 pub struct Aggregator {
-    best_bids_01: Option<[Level; 10]>,
-    best_bids_02: Option<[Level; 10]>,
-    best_asks_01: Option<[Level; 10]>,
-    best_asks_02: Option<[Level; 10]>,
+    best_bids_01: Option<[Level; DEPTH]>,
+    best_bids_02: Option<[Level; DEPTH]>,
+    best_asks_01: Option<[Level; DEPTH]>,
+    best_asks_02: Option<[Level; DEPTH]>,
 }
 
 impl Aggregator {
@@ -17,7 +19,7 @@ impl Aggregator {
             best_asks_02: None,
         }
     }
-    pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<10>) -> Summary<10> {
+    pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) -> Summary<DEPTH> {
         match source_id {
             0 => {
                 self.best_bids_01 = Some(snapshot.bids);
@@ -30,8 +32,8 @@ impl Aggregator {
             _ => panic!("The aggregator currently only supports two market streams"),
         }
 
-        let mut merged_best_bids: [Option<Level>; 10] = [None; 10];
-        let mut merged_best_asks: [Option<Level>; 10] = [None; 10];
+        let mut merged_best_bids: [Option<Level>; DEPTH] = [None; DEPTH];
+        let mut merged_best_asks: [Option<Level>; DEPTH] = [None; DEPTH];
 
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
             Aggregator::merge(
@@ -53,11 +55,11 @@ impl Aggregator {
                 true,
             );
 
-            let bids_normalized: [Level; 10] = Aggregator::normalize(&merged_best_bids);
-            let asks_normalized: [Level; 10] = Aggregator::normalize(&merged_best_asks);
+            let bids_normalized: [Level; DEPTH] = Aggregator::normalize(&merged_best_bids);
+            let asks_normalized: [Level; DEPTH] = Aggregator::normalize(&merged_best_asks);
 
             return Summary {
-                spread: asks_normalized[9].price - bids_normalized[0].price,
+                spread: asks_normalized[DEPTH - 1].price - bids_normalized[0].price,
                 bids: bids_normalized,
                 asks: asks_normalized,
             };
@@ -65,13 +67,13 @@ impl Aggregator {
 
         if self.best_bids_01.is_some() {
             Summary {
-                spread: self.best_asks_01.unwrap()[9].price - self.best_bids_01.unwrap()[0].price,
+                spread: self.best_asks_01.unwrap()[DEPTH - 1].price - self.best_bids_01.unwrap()[0].price,
                 bids: self.best_bids_01.unwrap(),
                 asks: self.best_asks_01.unwrap(),
             }
         } else {
             Summary {
-                spread: self.best_asks_02.unwrap()[9].price - self.best_bids_02.unwrap()[0].price,
+                spread: self.best_asks_02.unwrap()[DEPTH - 1].price - self.best_bids_02.unwrap()[0].price,
                 bids: self.best_bids_02.unwrap(),
                 asks: self.best_asks_02.unwrap(),
             }
@@ -79,15 +81,15 @@ impl Aggregator {
     }
 
     fn merge(
-        merged: &mut [Option<Level>; 10],
-        levels_01: &[Level; 10],
-        levels_02: &[Level; 10],
+        merged: &mut [Option<Level>; DEPTH],
+        levels_01: &[Level; DEPTH],
+        levels_02: &[Level; DEPTH],
         merged_index: usize,
         index_01: usize,
         index_02: usize,
         side: bool,
     ) {
-        if merged_index == 10 {
+        if merged_index == DEPTH {
             return;
         }
 
@@ -96,14 +98,14 @@ impl Aggregator {
 
         if side {
             // asks
-            let level_01 = &levels_01[9 - index_01];
-            let level_02 = &levels_02[9 - index_02];
+            let level_01 = &levels_01[DEPTH - 1 - index_01];
+            let level_02 = &levels_02[DEPTH - 1 - index_02];
 
             if level_01.price > level_02.price {
-                merged[9 - merged_index] = Some(*level_02);
+                merged[DEPTH - 1 - merged_index] = Some(*level_02);
                 new_index_02 += 1;
             } else {
-                merged[9 - merged_index] = Some(*level_01);
+                merged[DEPTH - 1 - merged_index] = Some(*level_01);
                 new_index_01 += 1;
             }
         } else {
@@ -131,27 +133,27 @@ impl Aggregator {
         )
     }
 
-    fn normalize(original: &[Option<Level>; 10]) -> [Level; 10] {
-        <[Level; 10]>::init_with_indices(|i| original[i].unwrap())
+    fn normalize(original: &[Option<Level>; DEPTH]) -> [Level; DEPTH] {
+        <[Level; DEPTH]>::init_with_indices(|i| original[i].unwrap())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Aggregator;
-    use crate::level::Level;
+    use crate::{level::Level, aggregator::DEPTH};
     use init_with::InitWith;
 
     #[test]
     fn should_merge_bids() {
         // Arrange
-        let mut merged: [Option<Level>; 10] = [None; 10];
-        let levels_01 = <[Level; 10]>::init_with_indices(|i| Level {
+        let mut merged: [Option<Level>; DEPTH] = [None; DEPTH];
+        let levels_01 = <[Level; DEPTH]>::init_with_indices(|i| Level {
             price: 20. - i as f64,
             amount: 13.,
             exchange: [' '; 10],
         });
-        let levels_02 = <[Level; 10]>::init_with_indices(|i| Level {
+        let levels_02 = <[Level; DEPTH]>::init_with_indices(|i| Level {
             price: 26. - 2. * i as f64,
             amount: 37.,
             exchange: [' '; 10],
@@ -176,13 +178,13 @@ mod tests {
     #[test]
     fn should_merge_asks() {
         // Arrange
-        let mut merged: [Option<Level>; 10] = [None; 10];
-        let levels_01 = <[Level; 10]>::init_with_indices(|i| Level {
+        let mut merged: [Option<Level>; DEPTH] = [None; DEPTH];
+        let levels_01 = <[Level; DEPTH]>::init_with_indices(|i| Level {
             price: 20. - i as f64,
             amount: 13.,
             exchange: [' '; 10],
         });
-        let levels_02 = <[Level; 10]>::init_with_indices(|i| Level {
+        let levels_02 = <[Level; DEPTH]>::init_with_indices(|i| Level {
             price: 26. - 2. * i as f64,
             amount: 37.,
             exchange: [' '; 10],
@@ -207,7 +209,7 @@ mod tests {
     #[test]
     fn should_merge_real_data_bids() {
         // Arrange
-        let mut merged: [Option<Level>; 10] = [None; 10];
+        let mut merged: [Option<Level>; DEPTH] = [None; DEPTH];
         let levels_01 = [
             Level {
                 price: 0.074505000000000002,
