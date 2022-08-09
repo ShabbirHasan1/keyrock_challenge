@@ -1,0 +1,10 @@
+[package]
+name = "keyrock_challenge_client"
+version = "1.0.0"
+authors = ["Finn Fiedler"]
+edition = "2021"
+
+[dependencies]
+keyrock_challenge_proto = { path = "../proto" }
+
+colored = "2.0.0"

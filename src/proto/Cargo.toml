@@ -1,0 +1,8 @@
+[package]
+name = "keyrock_challenge_proto"
+version = "1.0.0"
+authors = ["Finn Fiedler"]
+edition = "2021"
+
+[build-dependencies]
+tonic-build = "0.8"
