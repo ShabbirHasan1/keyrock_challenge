@@ -19,7 +19,11 @@ impl Aggregator {
             best_asks_02: None,
         }
     }
-    pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) -> Summary<DEPTH> {
+    pub fn process(
+        &mut self,
+        source_id: usize,
+        snapshot: OrderbookSnapshot<DEPTH>,
+    ) -> Summary<DEPTH> {
         match source_id {
             0 => {
                 self.best_bids_01 = Some(snapshot.bids);
@@ -67,13 +71,15 @@ impl Aggregator {
 
         if self.best_bids_01.is_some() {
             Summary {
-                spread: self.best_asks_01.unwrap()[DEPTH - 1].price - self.best_bids_01.unwrap()[0].price,
+                spread: self.best_asks_01.unwrap()[DEPTH - 1].price
+                    - self.best_bids_01.unwrap()[0].price,
                 bids: self.best_bids_01.unwrap(),
                 asks: self.best_asks_01.unwrap(),
             }
         } else {
             Summary {
-                spread: self.best_asks_02.unwrap()[DEPTH - 1].price - self.best_bids_02.unwrap()[0].price,
+                spread: self.best_asks_02.unwrap()[DEPTH - 1].price
+                    - self.best_bids_02.unwrap()[0].price,
                 bids: self.best_bids_02.unwrap(),
                 asks: self.best_asks_02.unwrap(),
             }
@@ -141,7 +147,7 @@ impl Aggregator {
 #[cfg(test)]
 mod tests {
     use super::Aggregator;
-    use crate::{level::Level, aggregator::DEPTH};
+    use crate::{aggregator::DEPTH, level::Level};
     use init_with::InitWith;
 
     #[test]
