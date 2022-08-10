@@ -7,6 +7,9 @@ edition = "2021"
 [dependencies]
 keyrock_challenge_proto = { path = "../proto" }
 
+tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread"] }
+tokio-stream = "0.1.9"
+futures = "0.3.21"
 tonic = "0.8.0"
 tungstenite = { version = "0.17.3", features = ["native-tls"] }
 url = "2.2.2"
