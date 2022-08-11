@@ -1,7 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::{aggregator::Aggregator, OrderbookSnapshot};
 use serde_json::Value;
+use tokio::sync::Mutex;
 use tungstenite::connect;
 use url::Url;
 
@@ -131,7 +132,7 @@ fn deserialize(raw: &str) -> Result<OrderbookSnapshot<10>, ()> {
     })
 }
 
-pub fn run_stream(source_id: usize, aggregator_arc: Arc<Mutex<Aggregator>>) {
+pub async fn run_stream(source_id: usize, aggregator_arc: Arc<Mutex<Aggregator>>) {
     let (mut socket, _) =
         connect(Url::parse("wss://stream.binance.com:9443/ws/ethbtc@depth10@100ms").unwrap())
             .expect("Unable to connect to Binance Exchange");
@@ -146,9 +147,7 @@ pub fn run_stream(source_id: usize, aggregator_arc: Arc<Mutex<Aggregator>>) {
         let deserialization = deserialize(&content);
 
         if let Ok(snapshot) = deserialization {
-            if let Ok(mut aggregator) = aggregator_arc.lock() {
-                aggregator.process(source_id, snapshot);
-            }
+            aggregator_arc.lock().await.process(source_id, snapshot);
         }
     }
 }

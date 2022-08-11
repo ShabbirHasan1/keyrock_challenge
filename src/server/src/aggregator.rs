@@ -20,6 +20,7 @@ pub struct Aggregator {
     best_asks_01: Option<[Level; DEPTH]>,
     best_asks_02: Option<[Level; DEPTH]>,
     sender: Sender<Option<Summary>>,
+    debug_counter: usize, //todo remove
 }
 
 impl Aggregator {
@@ -30,6 +31,7 @@ impl Aggregator {
             best_asks_01: None,
             best_asks_02: None,
             sender,
+            debug_counter: 0
         }
     }
     pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {
@@ -44,16 +46,15 @@ impl Aggregator {
             }
             _ => panic!("The aggregator currently only supports two market streams"),
         }
-
-        let mut merged_best_bids = Vec::<Level>::new();
-        let mut merged_best_asks = Vec::<Level>::new();
-
+        self.debug_counter += 1;
+        println!("SENDING SUMMARY {}", self.debug_counter);
+        let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH);
+        let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH);
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
             Aggregator::merge(
                 &mut merged_best_bids,
                 self.best_bids_01.as_ref().unwrap(),
                 self.best_bids_02.as_ref().unwrap(),
-                0,
                 0,
                 0,
                 false,
@@ -62,7 +63,6 @@ impl Aggregator {
                 &mut merged_best_asks,
                 self.best_asks_01.as_ref().unwrap(),
                 self.best_asks_02.as_ref().unwrap(),
-                0,
                 0,
                 0,
                 true,
@@ -103,12 +103,14 @@ impl Aggregator {
         merged: &mut Vec<Level>,
         levels_01: &[Level; DEPTH],
         levels_02: &[Level; DEPTH],
-        merged_index: usize,
         index_01: usize,
         index_02: usize,
         side: bool,
     ) {
-        if merged_index == DEPTH {
+        if merged.len() == DEPTH {
+            if side {
+                merged.reverse();
+            }
             return;
         }
 
@@ -121,10 +123,10 @@ impl Aggregator {
             let level_02 = &levels_02[DEPTH - 1 - index_02];
 
             if level_01.price > level_02.price {
-                merged[DEPTH - 1 - merged_index] = copy_level(level_02);
+                merged.push(copy_level(level_02));
                 new_index_02 += 1;
             } else {
-                merged[DEPTH - 1 - merged_index] = copy_level(level_01);
+                merged.push(copy_level(level_01));
                 new_index_01 += 1;
             }
         } else {
@@ -133,10 +135,10 @@ impl Aggregator {
             let level_02 = &levels_02[index_02];
 
             if level_01.price > level_02.price {
-                merged[merged_index] = copy_level(level_01);
+                merged.push(copy_level(level_01));
                 new_index_01 += 1;
             } else {
-                merged[merged_index] = copy_level(level_02);
+                merged.push(copy_level(level_02));
                 new_index_02 += 1;
             }
         }
@@ -145,7 +147,6 @@ impl Aggregator {
             merged,
             levels_01,
             levels_02,
-            merged_index + 1,
             new_index_01,
             new_index_02,
             side,
@@ -176,7 +177,7 @@ mod tests {
         });
 
         // Act
-        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, 0, false);
+        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, false);
 
         // Assert
         assert!(merged[0].amount == 37. && merged[0].price == 26.);
@@ -207,7 +208,7 @@ mod tests {
         });
 
         // Act
-        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, 0, true);
+        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, true);
 
         // Assert
         assert!(merged[0].amount == 13. && merged[0].price == 16.);
@@ -332,7 +333,7 @@ mod tests {
         ];
 
         // Act
-        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, 0, false);
+        Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, false);
 
         // Assert
         assert!(

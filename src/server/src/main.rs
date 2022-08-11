@@ -9,33 +9,10 @@ use grpc::OrderbookAggregatorServer;
 use orderbook_snapshot::OrderbookSnapshot;
 
 use keyrock_challenge_proto::orderbook::{self, Summary};
-use tokio::sync::watch::{self, Receiver, Sender};
+use tokio::sync::{Mutex, watch::{self, Receiver, Sender}};
 use tonic::transport::Server;
 
-use std::{
-    net::ToSocketAddrs,
-    sync::{Arc, Mutex},
-    thread,
-};
-
-async fn start_exchange_streams(
-    aggregator: Arc<Mutex<Aggregator>>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let aggregator_02 = aggregator.clone();
-
-    let binance_stream = thread::spawn(move || {
-        binance_spot::run_stream(0, aggregator);
-    });
-
-    let bitstamp_stream = thread::spawn(move || {
-        bitstamp_spot::run_stream(1, aggregator_02);
-    });
-
-    binance_stream.join().unwrap();
-    bitstamp_stream.join().unwrap();
-
-    Ok(())
-}
+use std::{net::ToSocketAddrs, sync::Arc};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -44,7 +21,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let aggregator = Mutex::new(aggregator);
     let aggregator = Arc::new(aggregator);
 
-    let exchange_stream = start_exchange_streams(aggregator.clone());
+    let agg_01 = aggregator.clone();
+    let agg_02 = aggregator.clone();
+
+    let binance_stream = tokio::spawn(async move {
+        binance_spot::run_stream(0, agg_01).await
+    });
+    let bitstamp_stream = tokio::spawn(async move {
+        bitstamp_spot::run_stream(1, agg_02).await
+    });
 
     let server = OrderbookAggregatorServer::new(rx);
     Server::builder()
@@ -53,5 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .unwrap();
 
-    exchange_stream.await
+    binance_stream.await?;
+    bitstamp_stream.await?;
+    Ok(())
 }
