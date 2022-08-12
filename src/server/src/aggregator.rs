@@ -44,9 +44,10 @@ impl Aggregator {
             }
             _ => panic!("The aggregator currently only supports two market streams"),
         }
-        let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH);
-        let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH);
+        
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
+            let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH * 2);
+            let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH * 2);
             Aggregator::merge(
                 &mut merged_best_bids,
                 self.best_bids_01.as_ref().unwrap(),
@@ -64,34 +65,31 @@ impl Aggregator {
                 true,
             );
 
-            self.sender
+            let _ = self.sender
                 .send(Some(Summary {
                     spread: merged_best_asks.last().unwrap().price
                         - merged_best_bids.first().unwrap().price,
                     bids: merged_best_bids,
                     asks: merged_best_asks,
-                }))
-                .unwrap();
+                }));
         }
 
         if self.best_bids_01.is_some() {
-            self.sender
+            let _ = self.sender
                 .send(Some(Summary {
-                    spread: self.best_asks_01.as_ref().unwrap()[DEPTH - 1].price
-                        - self.best_bids_01.as_ref().unwrap()[0].price,
+                    spread: self.best_asks_01.as_ref().unwrap().last().unwrap().price
+                        - self.best_bids_01.as_ref().unwrap().first().unwrap().price,
                     bids: self.best_bids_01.as_ref().unwrap().to_vec(),
                     asks: self.best_asks_01.as_ref().unwrap().to_vec(),
-                }))
-                .unwrap();
+                }));
         } else {
-            self.sender
+            let _ = self.sender
                 .send(Some(Summary {
-                    spread: self.best_asks_02.as_ref().unwrap()[DEPTH - 1].price
-                        - self.best_bids_02.as_ref().unwrap()[0].price,
+                    spread: self.best_asks_02.as_ref().unwrap().last().unwrap().price
+                        - self.best_bids_02.as_ref().unwrap().first().unwrap().price,
                     bids: self.best_bids_02.as_ref().unwrap().to_vec(),
                     asks: self.best_asks_02.as_ref().unwrap().to_vec(),
-                }))
-                .unwrap();
+                }));
         }
     }
 
@@ -103,7 +101,7 @@ impl Aggregator {
         index_02: usize,
         side: bool,
     ) {
-        if merged.len() == DEPTH {
+        if merged.len() == merged.capacity() {
             if side {
                 merged.reverse();
             }
@@ -115,28 +113,45 @@ impl Aggregator {
 
         if side {
             // asks
-            let level_01 = &levels_01[DEPTH - 1 - index_01];
-            let level_02 = &levels_02[DEPTH - 1 - index_02];
-
-            if level_01.price > level_02.price {
-                merged.push(copy_level(level_02));
+            if new_index_01 >= DEPTH {
+                merged.push(copy_level(&levels_02[DEPTH - 1 - index_02]));
                 new_index_02 += 1;
-            } else {
-                merged.push(copy_level(level_01));
+            } else if new_index_02 >= DEPTH {
+                merged.push(copy_level(&levels_01[DEPTH - 1 - index_01]));
                 new_index_01 += 1;
+            } else {
+                let level_01 = &levels_01[DEPTH - 1 - index_01];
+                let level_02 = &levels_02[DEPTH - 1 - index_02];
+
+                if level_01.price > level_02.price {
+                    merged.push(copy_level(level_02));
+                    new_index_02 += 1;
+                } else {
+                    merged.push(copy_level(level_01));
+                    new_index_01 += 1;
+                }
             }
+
         } else {
             // bids
-            let level_01 = &levels_01[index_01];
-            let level_02 = &levels_02[index_02];
-
-            if level_01.price > level_02.price {
-                merged.push(copy_level(level_01));
+            if new_index_01 >= DEPTH {
+                merged.push(copy_level(&levels_02[index_02]));
+                new_index_02 += 1;
+            } else if new_index_02 >= DEPTH {
+                merged.push(copy_level(&levels_01[index_01]));
                 new_index_01 += 1;
             } else {
-                merged.push(copy_level(level_02));
-                new_index_02 += 1;
-            }
+                let level_01 = &levels_01[index_01];
+                let level_02 = &levels_02[index_02];
+
+                if level_01.price > level_02.price {
+                    merged.push(copy_level(level_01));
+                    new_index_01 += 1;
+                } else {
+                    merged.push(copy_level(level_02));
+                    new_index_02 += 1;
+                }    
+            } 
         }
 
         Aggregator::merge(
@@ -160,7 +175,7 @@ mod tests {
     #[test]
     fn should_merge_bids() {
         // Arrange
-        let mut merged = Vec::<Level>::new();
+        let mut merged = Vec::<Level>::with_capacity(DEPTH);
         let levels_01 = <[Level; DEPTH]>::init_with_indices(|i| Level {
             price: 20. - i as f64,
             amount: 13.,
@@ -191,7 +206,7 @@ mod tests {
     #[test]
     fn should_merge_asks() {
         // Arrange
-        let mut merged = Vec::<Level>::new();
+        let mut merged = Vec::<Level>::with_capacity(DEPTH);
         let levels_01 = <[Level; DEPTH]>::init_with_indices(|i| Level {
             price: 20. - i as f64,
             amount: 13.,
@@ -222,7 +237,7 @@ mod tests {
     #[test]
     fn should_merge_real_data_bids() {
         // Arrange
-        let mut merged = Vec::<Level>::new();
+        let mut merged = Vec::<Level>::with_capacity(DEPTH * 2);
         let levels_01 = [
             Level {
                 price: 0.074505000000000002,
@@ -359,6 +374,18 @@ mod tests {
         );
         assert!(
             merged[9].price == 0.074485999999999997 && merged[9].exchange == "Binance".to_string()
+        );
+        assert!(
+            merged[10].price == 0.074484999999999996 && merged[10].exchange == "Binance".to_string()
+        );
+        assert!(
+            merged[11].price == 0.074467909999999998 && merged[11].exchange == "Bitstamp".to_string()
+        );
+        assert!(
+            merged[12].price == 0.074462249999999994 && merged[12].exchange == "Bitstamp".to_string()
+        );
+        assert!(
+            merged[19].price == 0.074410000000000004 && merged[19].exchange == "Bitstamp".to_string()
         );
     }
 }

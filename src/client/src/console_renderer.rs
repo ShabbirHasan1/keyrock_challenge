@@ -47,9 +47,8 @@ fn render_table(summary: &Summary) {
         "EXCHANGE".bold()
     );
 
-    for i in 0..9 {
+    for ask in &summary.asks {
         render_spread_padding();
-        let ask = &summary.asks[9 - i];
         let mut price_padded = String::new();
         let mut amount_padded = String::new();
         pad_right(
@@ -70,9 +69,8 @@ fn render_table(summary: &Summary) {
 
     render_spread(summary.spread);
 
-    for i in 0..9 {
+    for bid in &summary.bids {
         render_spread_padding();
-        let bid = &summary.bids[i];
         let mut price_padded = String::new();
         let mut amount_padded = String::new();
         pad_right(

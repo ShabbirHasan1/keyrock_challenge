@@ -80,43 +80,8 @@ fn deserialize(raw: &str) -> Result<OrderbookSnapshot<10>, ()> {
         asks: [
             Level {
                 exchange: exchange.to_string(),
-                price: asks[0][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[0][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[1][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[1][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[2][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[2][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[3][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[3][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[4][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[4][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[5][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[5][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[6][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[6][1].as_str().unwrap().parse::<f64>().unwrap(),
-            },
-            Level {
-                exchange: exchange.to_string(),
-                price: asks[7][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[7][1].as_str().unwrap().parse::<f64>().unwrap(),
+                price: asks[9][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[9][1].as_str().unwrap().parse::<f64>().unwrap(),
             },
             Level {
                 exchange: exchange.to_string(),
@@ -125,8 +90,43 @@ fn deserialize(raw: &str) -> Result<OrderbookSnapshot<10>, ()> {
             },
             Level {
                 exchange: exchange.to_string(),
-                price: asks[9][0].as_str().unwrap().parse::<f64>().unwrap(),
-                amount: asks[9][1].as_str().unwrap().parse::<f64>().unwrap(),
+                price: asks[7][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[7][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[6][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[6][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[5][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[5][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[4][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[4][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[3][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[3][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[2][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[2][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[1][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[1][1].as_str().unwrap().parse::<f64>().unwrap(),
+            },
+            Level {
+                exchange: exchange.to_string(),
+                price: asks[0][0].as_str().unwrap().parse::<f64>().unwrap(),
+                amount: asks[0][1].as_str().unwrap().parse::<f64>().unwrap(),
             },
         ],
     })
@@ -140,7 +140,7 @@ pub async fn run_stream(source_id: usize, aggregator_arc: Arc<Mutex<Aggregator>>
     loop {
         let msg = socket
             .read_message()
-            .expect("Unable to read from message from Binance websocket stream");
+            .expect("Unable to read from message from Binance websocket stream"); //todo handle error
         let content = msg
             .into_text()
             .expect("Unable to read from message from Binance websocket stream");

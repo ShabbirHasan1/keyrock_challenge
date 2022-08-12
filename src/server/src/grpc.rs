@@ -28,7 +28,7 @@ impl OrderbookAggregator for OrderbookAggregatorServer {
         _: tonic::Request<Empty>,
     ) -> BookSummaryResult<Self::BookSummaryStream> {
         let mut summary_receiver = self.summary_receiver.clone();
-        let (tx, rx) = mpsc::channel(128);
+        let (tx, rx) = mpsc::channel(1);
         tokio::spawn(async move {
             loop {
                 summary_receiver.changed().await.unwrap();
