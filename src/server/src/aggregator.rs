@@ -44,7 +44,7 @@ impl Aggregator {
             }
             _ => panic!("The aggregator currently only supports two market streams"),
         }
-        
+
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
             let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH * 2);
             let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH * 2);
@@ -65,31 +65,28 @@ impl Aggregator {
                 true,
             );
 
-            let _ = self.sender
-                .send(Some(Summary {
-                    spread: merged_best_asks.last().unwrap().price
-                        - merged_best_bids.first().unwrap().price,
-                    bids: merged_best_bids,
-                    asks: merged_best_asks,
-                }));
+            let _ = self.sender.send(Some(Summary {
+                spread: merged_best_asks.last().unwrap().price
+                    - merged_best_bids.first().unwrap().price,
+                bids: merged_best_bids,
+                asks: merged_best_asks,
+            }));
         }
 
         if self.best_bids_01.is_some() {
-            let _ = self.sender
-                .send(Some(Summary {
-                    spread: self.best_asks_01.as_ref().unwrap().last().unwrap().price
-                        - self.best_bids_01.as_ref().unwrap().first().unwrap().price,
-                    bids: self.best_bids_01.as_ref().unwrap().to_vec(),
-                    asks: self.best_asks_01.as_ref().unwrap().to_vec(),
-                }));
+            let _ = self.sender.send(Some(Summary {
+                spread: self.best_asks_01.as_ref().unwrap().last().unwrap().price
+                    - self.best_bids_01.as_ref().unwrap().first().unwrap().price,
+                bids: self.best_bids_01.as_ref().unwrap().to_vec(),
+                asks: self.best_asks_01.as_ref().unwrap().to_vec(),
+            }));
         } else {
-            let _ = self.sender
-                .send(Some(Summary {
-                    spread: self.best_asks_02.as_ref().unwrap().last().unwrap().price
-                        - self.best_bids_02.as_ref().unwrap().first().unwrap().price,
-                    bids: self.best_bids_02.as_ref().unwrap().to_vec(),
-                    asks: self.best_asks_02.as_ref().unwrap().to_vec(),
-                }));
+            let _ = self.sender.send(Some(Summary {
+                spread: self.best_asks_02.as_ref().unwrap().last().unwrap().price
+                    - self.best_bids_02.as_ref().unwrap().first().unwrap().price,
+                bids: self.best_bids_02.as_ref().unwrap().to_vec(),
+                asks: self.best_asks_02.as_ref().unwrap().to_vec(),
+            }));
         }
     }
 
@@ -131,7 +128,6 @@ impl Aggregator {
                     new_index_01 += 1;
                 }
             }
-
         } else {
             // bids
             if new_index_01 >= DEPTH {
@@ -150,8 +146,8 @@ impl Aggregator {
                 } else {
                     merged.push(copy_level(level_02));
                     new_index_02 += 1;
-                }    
-            } 
+                }
+            }
         }
 
         Aggregator::merge(
@@ -376,16 +372,20 @@ mod tests {
             merged[9].price == 0.074485999999999997 && merged[9].exchange == "Binance".to_string()
         );
         assert!(
-            merged[10].price == 0.074484999999999996 && merged[10].exchange == "Binance".to_string()
+            merged[10].price == 0.074484999999999996
+                && merged[10].exchange == "Binance".to_string()
         );
         assert!(
-            merged[11].price == 0.074467909999999998 && merged[11].exchange == "Bitstamp".to_string()
+            merged[11].price == 0.074467909999999998
+                && merged[11].exchange == "Bitstamp".to_string()
         );
         assert!(
-            merged[12].price == 0.074462249999999994 && merged[12].exchange == "Bitstamp".to_string()
+            merged[12].price == 0.074462249999999994
+                && merged[12].exchange == "Bitstamp".to_string()
         );
         assert!(
-            merged[19].price == 0.074410000000000004 && merged[19].exchange == "Bitstamp".to_string()
+            merged[19].price == 0.074410000000000004
+                && merged[19].exchange == "Bitstamp".to_string()
         );
     }
 }
