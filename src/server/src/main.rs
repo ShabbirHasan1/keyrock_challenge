@@ -17,6 +17,8 @@ use tonic::transport::Server;
 
 use std::{net::ToSocketAddrs, sync::Arc};
 
+const SERVER_URL: &str = "[::1]:8080";
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx, rx): (Sender<Option<Summary>>, Receiver<Option<Summary>>) = watch::channel(None);
@@ -33,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = OrderbookAggregatorServer::new(rx);
     Server::builder()
         .add_service(orderbook::orderbook_aggregator_server::OrderbookAggregatorServer::new(server))
-        .serve("[::1]:8080".to_socket_addrs().unwrap().next().unwrap())
+        .serve(SERVER_URL.to_socket_addrs().unwrap().next().unwrap())
         .await
         .unwrap();
 
