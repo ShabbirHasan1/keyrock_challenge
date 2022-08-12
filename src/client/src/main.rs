@@ -13,7 +13,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = client.book_summary(Empty {}).await?.into_inner();
 
     while let Some(summary) = stream.next().await {
-        console_renderer::render(summary.unwrap());
+        if let Ok(summary) = summary {
+            console_renderer::render(summary);
+        }
     }
     Ok(())
 }

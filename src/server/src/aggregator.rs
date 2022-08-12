@@ -20,7 +20,6 @@ pub struct Aggregator {
     best_asks_01: Option<[Level; DEPTH]>,
     best_asks_02: Option<[Level; DEPTH]>,
     sender: Sender<Option<Summary>>,
-    debug_counter: usize, //todo remove
 }
 
 impl Aggregator {
@@ -31,7 +30,6 @@ impl Aggregator {
             best_asks_01: None,
             best_asks_02: None,
             sender,
-            debug_counter: 0,
         }
     }
     pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {
@@ -46,8 +44,6 @@ impl Aggregator {
             }
             _ => panic!("The aggregator currently only supports two market streams"),
         }
-        self.debug_counter += 1;
-        println!("SENDING SUMMARY {}", self.debug_counter);
         let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH);
         let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH);
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
