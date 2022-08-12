@@ -31,7 +31,7 @@ impl Aggregator {
             best_asks_01: None,
             best_asks_02: None,
             sender,
-            debug_counter: 0
+            debug_counter: 0,
         }
     }
     pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {

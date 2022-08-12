@@ -9,7 +9,10 @@ use grpc::OrderbookAggregatorServer;
 use orderbook_snapshot::OrderbookSnapshot;
 
 use keyrock_challenge_proto::orderbook::{self, Summary};
-use tokio::sync::{Mutex, watch::{self, Receiver, Sender}};
+use tokio::sync::{
+    watch::{self, Receiver, Sender},
+    Mutex,
+};
 use tonic::transport::Server;
 
 use std::{net::ToSocketAddrs, sync::Arc};
@@ -24,12 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let agg_01 = aggregator.clone();
     let agg_02 = aggregator.clone();
 
-    let binance_stream = tokio::spawn(async move {
-        binance_spot::run_stream(0, agg_01).await
-    });
-    let bitstamp_stream = tokio::spawn(async move {
-        bitstamp_spot::run_stream(1, agg_02).await
-    });
+    let binance_stream = tokio::spawn(async move { binance_spot::run_stream(0, agg_01).await });
+    let bitstamp_stream = tokio::spawn(async move { bitstamp_spot::run_stream(1, agg_02).await });
 
     let server = OrderbookAggregatorServer::new(rx);
     Server::builder()

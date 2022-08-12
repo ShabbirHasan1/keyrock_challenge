@@ -30,7 +30,7 @@ impl OrderbookAggregator for OrderbookAggregatorServer {
         let mut summary_receiver = self.summary_receiver.clone();
         let (tx, rx) = mpsc::channel(128);
         tokio::spawn(async move {
-            loop  {
+            loop {
                 summary_receiver.changed().await.unwrap();
                 let new_summary = summary_receiver.borrow().clone().unwrap();
                 match tx.send(Result::<_, Status>::Ok(new_summary)).await {

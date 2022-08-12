@@ -1,8 +1,8 @@
 use crate::{aggregator::Aggregator, OrderbookSnapshot};
 use keyrock_challenge_proto::orderbook::Level;
 use serde_json::Value;
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tungstenite::{connect, Message};
 use url::Url;
 
