@@ -1,11 +1,14 @@
-use crate::orderbook_snapshot::OrderbookSnapshot;
+use std::sync::Arc;
+
+use crate::{orderbook_snapshot::OrderbookSnapshot, spmc::Spmc};
 use keyrock_challenge_proto::orderbook::{Level, Summary};
 
-use tokio::sync::watch::Sender;
+use tokio::sync::Mutex;
 
 const DEPTH: usize = 10;
 
 fn copy_level(level: &Level) -> Level {
+    //todo
     Level {
         price: level.price,
         amount: level.amount,
@@ -19,20 +22,20 @@ pub struct Aggregator {
     best_bids_02: Option<[Level; DEPTH]>,
     best_asks_01: Option<[Level; DEPTH]>,
     best_asks_02: Option<[Level; DEPTH]>,
-    sender: Sender<Option<Summary>>,
+    spmc: Arc<Mutex<Spmc>>,
 }
 
 impl Aggregator {
-    pub fn new(sender: Sender<Option<Summary>>) -> Aggregator {
+    pub fn new(spmc: Arc<Mutex<Spmc>>) -> Aggregator {
         Aggregator {
             best_bids_01: None,
             best_bids_02: None,
             best_asks_01: None,
             best_asks_02: None,
-            sender,
+            spmc,
         }
     }
-    pub fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {
+    pub async fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {
         match source_id {
             0 => {
                 self.best_bids_01 = Some(snapshot.bids);
@@ -65,28 +68,35 @@ impl Aggregator {
                 true,
             );
 
-            let _ = self.sender.send(Some(Summary {
+            let smpc = self.spmc.lock().await;
+            smpc.broadcast(Summary {
                 spread: merged_best_asks.last().unwrap().price
                     - merged_best_bids.first().unwrap().price,
                 bids: merged_best_bids,
                 asks: merged_best_asks,
-            }));
+            })
+            .await;
+            return;
         }
 
         if self.best_bids_01.is_some() {
-            let _ = self.sender.send(Some(Summary {
+            let smpc = self.spmc.lock().await;
+            smpc.broadcast(Summary {
                 spread: self.best_asks_01.as_ref().unwrap().last().unwrap().price
                     - self.best_bids_01.as_ref().unwrap().first().unwrap().price,
                 bids: self.best_bids_01.as_ref().unwrap().to_vec(),
                 asks: self.best_asks_01.as_ref().unwrap().to_vec(),
-            }));
+            })
+            .await
         } else {
-            let _ = self.sender.send(Some(Summary {
+            let smpc = self.spmc.lock().await;
+            smpc.broadcast(Summary {
                 spread: self.best_asks_02.as_ref().unwrap().last().unwrap().price
                     - self.best_bids_02.as_ref().unwrap().first().unwrap().price,
                 bids: self.best_bids_02.as_ref().unwrap().to_vec(),
                 asks: self.best_asks_02.as_ref().unwrap().to_vec(),
-            }));
+            })
+            .await
         }
     }
 

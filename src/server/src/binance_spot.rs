@@ -143,11 +143,15 @@ pub async fn run_stream(source_id: usize, aggregator_arc: Arc<Mutex<Aggregator>>
             .expect("Unable to read from message from Binance websocket stream"); //todo handle error
         let content = msg
             .into_text()
-            .expect("Unable to read from message from Binance websocket stream");
+            .expect("Unable to read from message from Binance websocket stream"); //todo handle error
         let deserialization = deserialize(&content);
 
         if let Ok(snapshot) = deserialization {
-            aggregator_arc.lock().await.process(source_id, snapshot);
+            aggregator_arc
+                .lock()
+                .await
+                .process(source_id, snapshot)
+                .await;
         }
     }
 }

@@ -151,15 +151,19 @@ pub async fn run_stream(source_id: usize, aggregator_arc: Arc<Mutex<Aggregator>>
 
     loop {
         let msg = socket
-            .read_message() //todo handle error
-            .expect("Unable to read from message from Bitstamp websocket stream");
+            .read_message()
+            .expect("Unable to read from message from Bitstamp websocket stream"); //todo handle error
         let content = msg
             .into_text()
-            .expect("Unable to read from message from Bitstamp websocket stream");
+            .expect("Unable to read from message from Bitstamp websocket stream"); //todo handle error
         let deserialization = deserialize(&content);
 
         if let Ok(snapshot) = deserialization {
-            aggregator_arc.lock().await.process(source_id, snapshot);
+            aggregator_arc
+                .lock()
+                .await
+                .process(source_id, snapshot)
+                .await;
         }
     }
 }

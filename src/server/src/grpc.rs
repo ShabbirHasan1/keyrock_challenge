@@ -1,19 +1,20 @@
+use crate::spmc::Spmc;
 use keyrock_challenge_proto::orderbook::{
     orderbook_aggregator_server::OrderbookAggregator, Empty, Summary,
 };
-use std::pin::Pin;
-use tokio::sync::{mpsc, watch::Receiver};
+use std::{pin::Pin, sync::Arc};
+use tokio::sync::{mpsc, Mutex};
 use tokio_stream::{wrappers::ReceiverStream, Stream};
 use tonic::{Response, Status};
 
 #[derive(Debug)]
 pub struct OrderbookAggregatorServer {
-    summary_receiver: Receiver<Option<Summary>>,
+    spmc: Arc<Mutex<Spmc>>,
 }
 
 impl OrderbookAggregatorServer {
-    pub fn new(summary_receiver: Receiver<Option<Summary>>) -> OrderbookAggregatorServer {
-        OrderbookAggregatorServer { summary_receiver }
+    pub fn new(spmc: Arc<Mutex<Spmc>>) -> OrderbookAggregatorServer {
+        OrderbookAggregatorServer { spmc }
     }
 }
 
@@ -27,20 +28,24 @@ impl OrderbookAggregator for OrderbookAggregatorServer {
         &self,
         _: tonic::Request<Empty>,
     ) -> BookSummaryResult<Self::BookSummaryStream> {
-        let mut summary_receiver = self.summary_receiver.clone();
-        let (tx, rx) = mpsc::channel(1);
+        let mut spmc = self.spmc.lock().await;
+        let mut rx = spmc.create_receiver(64); //todo make const
+        let (stream_tx, stream_rx) = mpsc::channel(64); //todo make const
         tokio::spawn(async move {
             loop {
-                summary_receiver.changed().await.unwrap();
-                let new_summary = summary_receiver.borrow().clone().unwrap();
-                match tx.send(Result::<_, Status>::Ok(new_summary)).await {
-                    Ok(_) => {}
-                    Err(_item) => {}
+                if let Some(new_summary) = rx.recv().await {
+                    match stream_tx.send(Result::<_, Status>::Ok(new_summary)).await {
+                        Ok(_) => {}
+                        Err(_item) => {
+                            drop(rx);
+                            break;
+                        }
+                    }
                 }
             }
         });
 
-        let output_stream = ReceiverStream::new(rx);
+        let output_stream = ReceiverStream::new(stream_rx);
         Ok(Response::new(
             Box::pin(output_stream) as Self::BookSummaryStream
         ))

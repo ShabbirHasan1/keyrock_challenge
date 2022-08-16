@@ -555,7 +555,6 @@ dependencies = [
 name = "keyrock_challenge_server"
 version = "1.0.0"
 dependencies = [
- "colored",
  "futures",
  "init_with",
  "keyrock_challenge_proto",
