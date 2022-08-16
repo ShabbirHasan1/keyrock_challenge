@@ -13,14 +13,22 @@ impl Spmc {
         }
     }
 
-    pub async fn broadcast(&self, summary: Summary) {
-        for sender in &self.senders {
+    pub async fn broadcast(&mut self, summary: Summary) {
+        let mut index: usize = 0;
+
+        loop {
+            if index >= self.senders.len() {
+                break;
+            }
+            let sender = &self.senders[index];
             let result = sender.send(summary.clone()).await;
             match result {
-                Ok(_) => {}
-                Err(err) => {
-                    println!("Unable to broadcast: {}", err)
-                } //todo handle client dc
+                Ok(_) => {
+                    index += 1;
+                }
+                Err(_) => {
+                    let _ = &self.senders.remove(index);
+                }
             }
         }
     }

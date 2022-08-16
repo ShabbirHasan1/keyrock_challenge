@@ -68,7 +68,7 @@ impl Aggregator {
                 true,
             );
 
-            let smpc = self.spmc.lock().await;
+            let mut smpc = self.spmc.lock().await;
             smpc.broadcast(Summary {
                 spread: merged_best_asks.last().unwrap().price
                     - merged_best_bids.first().unwrap().price,
@@ -80,7 +80,7 @@ impl Aggregator {
         }
 
         if self.best_bids_01.is_some() {
-            let smpc = self.spmc.lock().await;
+            let mut smpc = self.spmc.lock().await;
             smpc.broadcast(Summary {
                 spread: self.best_asks_01.as_ref().unwrap().last().unwrap().price
                     - self.best_bids_01.as_ref().unwrap().first().unwrap().price,
@@ -89,7 +89,7 @@ impl Aggregator {
             })
             .await
         } else {
-            let smpc = self.spmc.lock().await;
+            let mut smpc = self.spmc.lock().await;
             smpc.broadcast(Summary {
                 spread: self.best_asks_02.as_ref().unwrap().last().unwrap().price
                     - self.best_bids_02.as_ref().unwrap().first().unwrap().price,
