@@ -31,12 +31,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bitstamp_stream = tokio::spawn(async move { bitstamp_spot::run_stream(1, agg_02).await });
 
     let server = OrderbookAggregatorServer::new(spmr.clone());
-    Server::builder()
+    let grpc = Server::builder()
         .add_service(orderbook::orderbook_aggregator_server::OrderbookAggregatorServer::new(server))
-        .serve(SERVER_URL.to_socket_addrs().unwrap().next().unwrap())
-        .await
-        .unwrap();
+        .serve(SERVER_URL.to_socket_addrs().unwrap().next().unwrap());
 
-    futures::future::join_all([binance_stream, bitstamp_stream]).await;
+    // for maximum reliability we want the programm to stop in case any of the network streams fail
+    tokio::select! {
+        _ = binance_stream => {},
+        _ = bitstamp_stream => {},
+        _ = grpc => {}
+    };
     Ok(())
 }
