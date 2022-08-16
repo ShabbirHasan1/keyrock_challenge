@@ -8,7 +8,6 @@ use tokio::sync::Mutex;
 const DEPTH: usize = 10;
 
 fn copy_level(level: &Level) -> Level {
-    //todo
     Level {
         price: level.price,
         amount: level.amount,

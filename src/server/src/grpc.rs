@@ -7,6 +7,9 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_stream::{wrappers::ReceiverStream, Stream};
 use tonic::{Response, Status};
 
+const SPMC_BUFFER_SIZE: usize = 64;
+const GRPC_BUFFER_SIZE: usize = 64;
+
 #[derive(Debug)]
 pub struct OrderbookAggregatorServer {
     spmc: Arc<Mutex<Spmc>>,
@@ -29,8 +32,8 @@ impl OrderbookAggregator for OrderbookAggregatorServer {
         _: tonic::Request<Empty>,
     ) -> BookSummaryResult<Self::BookSummaryStream> {
         let mut spmc = self.spmc.lock().await;
-        let mut rx = spmc.create_receiver(64); //todo make const
-        let (stream_tx, stream_rx) = mpsc::channel(64); //todo make const
+        let mut rx = spmc.create_receiver(SPMC_BUFFER_SIZE);
+        let (stream_tx, stream_rx) = mpsc::channel(GRPC_BUFFER_SIZE);
         tokio::spawn(async move {
             loop {
                 if let Some(new_summary) = rx.recv().await {

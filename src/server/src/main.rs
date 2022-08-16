@@ -37,7 +37,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .unwrap();
 
-    binance_stream.await?;
-    bitstamp_stream.await?;
+    futures::future::join_all([binance_stream, bitstamp_stream]).await;
     Ok(())
 }
