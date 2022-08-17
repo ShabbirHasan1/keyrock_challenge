@@ -76,8 +76,6 @@ impl Aggregator {
             _ => panic!("The aggregator currently only supports two market streams"),
         }
 
-        Aggregator::log_publish_event();
-
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
             let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH);
             let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH);
@@ -139,9 +137,6 @@ impl Aggregator {
             "[WARNING]: {} stream is {} ticks ahead",
             exchange_name, lead
         );
-    }
-    fn log_publish_event() {
-        println!("[Success]: Publish new Aggregate");
     }
 
     fn merge(
