@@ -1,9 +1,9 @@
 use keyrock_challenge_proto::orderbook::Summary;
-
+use std::io::{Write, StdoutLock};
 use colored::Colorize;
 
-fn clear_console() {
-    print!("{esc}c", esc = 27 as char);
+fn clear_console(lock: &mut StdoutLock) {
+    let _ = write!(lock, "{esc}c", esc = 27 as char);
 }
 
 fn pad_right(original: &str, padded: &mut String, length: u8, character: char) {
@@ -20,17 +20,17 @@ fn pad_right(original: &str, padded: &mut String, length: u8, character: char) {
     }
 }
 
-fn render_spread(spread: f64) {
-    println!("{} {}", "Spread:".bold(), spread);
+fn render_spread(lock: &mut StdoutLock, spread: f64) {
+    let _ = writeln!(lock, "{} {}", "Spread:".bold(), spread);
 }
 
-fn render_spread_padding() {
+fn render_spread_padding(lock: &mut StdoutLock) {
     for _ in 0..40 {
-        print!(" ");
+        let _ = write!(lock, " ");
     }
 }
 
-fn render_table(summary: &Summary) {
+fn render_table(lock: &mut StdoutLock, summary: &Summary) {
     let price_padding_size = 14;
     let amount_padding_size = 14;
 
@@ -39,8 +39,9 @@ fn render_table(summary: &Summary) {
     pad_right("PRICE", &mut price_header, price_padding_size + 1, ' ');
     pad_right("AMOUNT", &mut amount_header, amount_padding_size, ' ');
 
-    render_spread_padding();
-    println!(
+    render_spread_padding(lock);
+    let _ = writeln!(
+        lock,
         "{}{}{}",
         price_header.bold(),
         amount_header.bold(),
@@ -48,7 +49,7 @@ fn render_table(summary: &Summary) {
     );
 
     for ask in &summary.asks {
-        render_spread_padding();
+        render_spread_padding(lock);
         let mut price_padded = String::new();
         let mut amount_padded = String::new();
         pad_right(
@@ -63,14 +64,14 @@ fn render_table(summary: &Summary) {
             amount_padding_size,
             ' ',
         );
-        print!("{} {} {}", price_padded.red(), amount_padded, ask.exchange);
-        println!();
+        let _ = write!(lock, "{} {} {}", price_padded.red(), amount_padded, ask.exchange);
+        let _ = writeln!(lock);
     }
 
-    render_spread(summary.spread);
+    render_spread(lock, summary.spread);
 
     for bid in &summary.bids {
-        render_spread_padding();
+        render_spread_padding(lock);
         let mut price_padded = String::new();
         let mut amount_padded = String::new();
         pad_right(
@@ -85,17 +86,20 @@ fn render_table(summary: &Summary) {
             amount_padding_size,
             ' ',
         );
-        print!(
+        let _ = write!(
+            lock,
             "{} {} {}",
             price_padded.green(),
             amount_padded,
             bid.exchange
         );
-        println!();
+        let _ = writeln!(lock);
     }
 }
 
 pub fn render(summary: Summary) {
-    clear_console();
-    render_table(&summary);
+    let stdout = std::io::stdout();
+    let mut lock = stdout.lock();
+    clear_console(&mut lock);
+    render_table(&mut lock, &summary);
 }
