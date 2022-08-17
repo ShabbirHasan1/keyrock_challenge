@@ -26,11 +26,15 @@ pub struct Aggregator {
     exchange_01_name: String,
     exchange_02_name: String,
     lead_01: usize,
-    lead_02: usize
+    lead_02: usize,
 }
 
 impl Aggregator {
-    pub fn new(spmc: Arc<Mutex<Spmc>>, exchange_01_name: String, exchange_02_name: String,) -> Aggregator {
+    pub fn new(
+        spmc: Arc<Mutex<Spmc>>,
+        exchange_01_name: String,
+        exchange_02_name: String,
+    ) -> Aggregator {
         Aggregator {
             best_bids_01: None,
             best_bids_02: None,
@@ -40,7 +44,7 @@ impl Aggregator {
             exchange_01_name,
             exchange_02_name,
             lead_01: 0,
-            lead_02: 0
+            lead_02: 0,
         }
     }
     pub async fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {
@@ -54,7 +58,7 @@ impl Aggregator {
                 if Aggregator::stream_exceeded_lead_tolerance(self.lead_01) {
                     // In a production scenario, we might not even want to publish the aggregation here since it may not
                     // reflecting the actual spread anymore
-                    println!("[WARNING]: {} stream is {} ticks ahead", self.exchange_01_name, self.lead_01);
+                    Aggregator::log_lead_warning(&self.exchange_01_name, self.lead_01);
                 }
             }
             1 => {
@@ -66,15 +70,17 @@ impl Aggregator {
                 if Aggregator::stream_exceeded_lead_tolerance(self.lead_01) {
                     // In a production scenario, we might not even want to publish the aggregation here since it may not
                     // reflecting the actual spread anymore
-                    println!("[WARNING]: {} stream is {} ticks ahead", self.exchange_02_name, self.lead_01);
-                }
+                    Aggregator::log_lead_warning(&self.exchange_02_name, self.lead_02);
+                } 
             }
             _ => panic!("The aggregator currently only supports two market streams"),
         }
 
+        Aggregator::log_publish_event();
+
         if self.best_bids_01.is_some() && self.best_bids_02.is_some() {
-            let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH * 2);
-            let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH * 2);
+            let mut merged_best_bids = Vec::<Level>::with_capacity(DEPTH);
+            let mut merged_best_asks = Vec::<Level>::with_capacity(DEPTH);
             Aggregator::merge(
                 &mut merged_best_bids,
                 self.best_bids_01.as_ref().unwrap(),
@@ -94,7 +100,7 @@ impl Aggregator {
 
             let mut smpc = self.spmc.lock().await;
             smpc.broadcast(Summary {
-                spread: merged_best_asks.last().unwrap().price
+                spread: merged_best_asks.first().unwrap().price
                     - merged_best_bids.first().unwrap().price,
                 bids: merged_best_bids,
                 asks: merged_best_asks,
@@ -106,7 +112,7 @@ impl Aggregator {
         if self.best_bids_01.is_some() {
             let mut smpc = self.spmc.lock().await;
             smpc.broadcast(Summary {
-                spread: self.best_asks_01.as_ref().unwrap().last().unwrap().price
+                spread: self.best_asks_01.as_ref().unwrap().first().unwrap().price
                     - self.best_bids_01.as_ref().unwrap().first().unwrap().price,
                 bids: self.best_bids_01.as_ref().unwrap().to_vec(),
                 asks: self.best_asks_01.as_ref().unwrap().to_vec(),
@@ -115,7 +121,7 @@ impl Aggregator {
         } else {
             let mut smpc = self.spmc.lock().await;
             smpc.broadcast(Summary {
-                spread: self.best_asks_02.as_ref().unwrap().last().unwrap().price
+                spread: self.best_asks_02.as_ref().unwrap().first().unwrap().price
                     - self.best_bids_02.as_ref().unwrap().first().unwrap().price,
                 bids: self.best_bids_02.as_ref().unwrap().to_vec(),
                 asks: self.best_asks_02.as_ref().unwrap().to_vec(),
@@ -125,8 +131,17 @@ impl Aggregator {
     }
 
     fn stream_exceeded_lead_tolerance(lead: usize) -> bool {
+        lead >= LEAD_TOLERANCE
+    }
 
-        lead >= LEAD_TOLERANCE 
+    fn log_lead_warning(exchange_name: &str, lead: usize) {
+        println!(
+            "[WARNING]: {} stream is {} ticks ahead",
+            exchange_name, lead
+        );
+    }
+    fn log_publish_event() {
+        println!("[Success]: Publish new Aggregate");
     }
 
     fn merge(
@@ -138,9 +153,6 @@ impl Aggregator {
         side: bool,
     ) {
         if merged.len() == merged.capacity() {
-            if side {
-                merged.reverse();
-            }
             return;
         }
 
@@ -150,14 +162,14 @@ impl Aggregator {
         if side {
             // asks
             if new_index_01 >= DEPTH {
-                merged.push(copy_level(&levels_02[DEPTH - 1 - index_02]));
+                merged.push(copy_level(&levels_02[index_02]));
                 new_index_02 += 1;
             } else if new_index_02 >= DEPTH {
-                merged.push(copy_level(&levels_01[DEPTH - 1 - index_01]));
+                merged.push(copy_level(&levels_01[index_01]));
                 new_index_01 += 1;
             } else {
-                let level_01 = &levels_01[DEPTH - 1 - index_01];
-                let level_02 = &levels_02[DEPTH - 1 - index_02];
+                let level_01 = &levels_01[index_01];
+                let level_02 = &levels_02[index_02];
 
                 if level_01.price > level_02.price {
                     merged.push(copy_level(level_02));
@@ -243,12 +255,12 @@ mod tests {
         // Arrange
         let mut merged = Vec::<Level>::with_capacity(DEPTH);
         let levels_01 = <[Level; DEPTH]>::init_with_indices(|i| Level {
-            price: 20. - i as f64,
+            price: 10. + i as f64,
             amount: 13.,
             exchange: String::new(),
         });
         let levels_02 = <[Level; DEPTH]>::init_with_indices(|i| Level {
-            price: 26. - 2. * i as f64,
+            price: 6. + 2. * i as f64,
             amount: 37.,
             exchange: String::new(),
         });
@@ -257,16 +269,16 @@ mod tests {
         Aggregator::merge(&mut merged, &levels_01, &levels_02, 0, 0, true);
 
         // Assert
-        assert!(merged[0].amount == 13. && merged[0].price == 16.);
-        assert!(merged[1].amount == 13. && merged[1].price == 15.);
-        assert!(merged[2].amount == 37. && merged[2].price == 14.);
-        assert!(merged[3].amount == 13. && merged[3].price == 14.);
-        assert!(merged[4].amount == 13. && merged[4].price == 13.);
-        assert!(merged[5].amount == 37. && merged[5].price == 12.);
-        assert!(merged[6].amount == 13. && merged[6].price == 12.);
-        assert!(merged[7].amount == 13. && merged[7].price == 11.);
-        assert!(merged[8].amount == 37. && merged[8].price == 10.);
-        assert!(merged[9].amount == 37. && merged[9].price == 8.);
+        assert!(merged[0].amount == 37. && merged[0].price == 6.);
+        assert!(merged[1].amount == 37. && merged[1].price == 8.);
+        assert!(merged[2].amount == 13. && merged[2].price == 10.);
+        assert!(merged[3].amount == 37. && merged[3].price == 10.);
+        assert!(merged[4].amount == 13. && merged[4].price == 11.);
+        assert!(merged[5].amount == 13. && merged[5].price == 12.);
+        assert!(merged[6].amount == 37. && merged[6].price == 12.);
+        assert!(merged[7].amount == 13. && merged[7].price == 13.);
+        assert!(merged[8].amount == 13. && merged[8].price == 14.);
+        assert!(merged[9].amount == 37. && merged[9].price == 14.);
     }
 
     #[test]

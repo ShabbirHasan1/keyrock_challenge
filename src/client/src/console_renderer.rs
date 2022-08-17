@@ -48,7 +48,9 @@ fn render_table(lock: &mut StdoutLock, summary: &Summary) {
         "EXCHANGE".bold()
     );
 
-    for ask in &summary.asks {
+    let amount_asks = summary.asks.len();
+    for index in 0..amount_asks {
+        let ask = &summary.asks[amount_asks - index - 1];
         render_spread_padding(lock);
         let mut price_padded = String::new();
         let mut amount_padded = String::new();
