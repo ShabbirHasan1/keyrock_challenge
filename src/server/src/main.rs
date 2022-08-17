@@ -20,7 +20,7 @@ const SERVER_URL: &str = "[::1]:8080";
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let spmr = Arc::new(Mutex::new(spmc::Spmc::new()));
-    let aggregator: Aggregator = Aggregator::new(spmr.clone());
+    let aggregator: Aggregator = Aggregator::new(spmr.clone(), "Binance".to_string(), "Bitstamp".to_string());
     let aggregator = Mutex::new(aggregator);
     let aggregator = Arc::new(aggregator);
 

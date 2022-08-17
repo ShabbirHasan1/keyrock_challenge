@@ -6,6 +6,7 @@ use keyrock_challenge_proto::orderbook::{Level, Summary};
 use tokio::sync::Mutex;
 
 const DEPTH: usize = 10;
+const LEAD_TOLERANCE: usize = 3;
 
 fn copy_level(level: &Level) -> Level {
     Level {
@@ -22,16 +23,24 @@ pub struct Aggregator {
     best_asks_01: Option<[Level; DEPTH]>,
     best_asks_02: Option<[Level; DEPTH]>,
     spmc: Arc<Mutex<Spmc>>,
+    exchange_01_name: String,
+    exchange_02_name: String,
+    lead_01: usize,
+    lead_02: usize
 }
 
 impl Aggregator {
-    pub fn new(spmc: Arc<Mutex<Spmc>>) -> Aggregator {
+    pub fn new(spmc: Arc<Mutex<Spmc>>, exchange_01_name: String, exchange_02_name: String,) -> Aggregator {
         Aggregator {
             best_bids_01: None,
             best_bids_02: None,
             best_asks_01: None,
             best_asks_02: None,
             spmc,
+            exchange_01_name,
+            exchange_02_name,
+            lead_01: 0,
+            lead_02: 0
         }
     }
     pub async fn process(&mut self, source_id: usize, snapshot: OrderbookSnapshot<DEPTH>) {
@@ -39,10 +48,26 @@ impl Aggregator {
             0 => {
                 self.best_bids_01 = Some(snapshot.bids);
                 self.best_asks_01 = Some(snapshot.asks);
+                self.lead_01 += 1;
+                self.lead_02 = 0;
+
+                if Aggregator::stream_exceeded_lead_tolerance(self.lead_01) {
+                    // In a production scenario, we might not even want to publish the aggregation here since it may not
+                    // reflecting the actual spread anymore
+                    println!("[WARNING]: {} stream is {} ticks ahead", self.exchange_01_name, self.lead_01);
+                }
             }
             1 => {
                 self.best_bids_02 = Some(snapshot.bids);
                 self.best_asks_02 = Some(snapshot.asks);
+                self.lead_01 = 0;
+                self.lead_02 = 1;
+
+                if Aggregator::stream_exceeded_lead_tolerance(self.lead_01) {
+                    // In a production scenario, we might not even want to publish the aggregation here since it may not
+                    // reflecting the actual spread anymore
+                    println!("[WARNING]: {} stream is {} ticks ahead", self.exchange_02_name, self.lead_01);
+                }
             }
             _ => panic!("The aggregator currently only supports two market streams"),
         }
@@ -97,6 +122,11 @@ impl Aggregator {
             })
             .await
         }
+    }
+
+    fn stream_exceeded_lead_tolerance(lead: usize) -> bool {
+
+        lead >= LEAD_TOLERANCE 
     }
 
     fn merge(
