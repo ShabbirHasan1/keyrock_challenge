@@ -139,6 +139,11 @@ impl Aggregator {
         );
     }
 
+    /**
+     * Merges two arrays of orderbook levels. 
+     * Expects both arrays to be sorted with the best offer being at position 0.
+     * The side states if the arrays contain bids (false) or asks (true)
+     */
     fn merge(
         merged: &mut Vec<Level>,
         levels_01: &[Level; DEPTH],
